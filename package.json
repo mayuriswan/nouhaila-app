@@ -7,7 +7,10 @@
   "dependencies": {
     "csvtojson": "^2.0.10",
     "dotenv": "^8.2.0",
-    "nodemailer": "^6.4.10"
+    "express": "^4.18.2",
+    "fast-csv": "^4.3.6",
+    "nodemailer": "^6.4.10",
+    "pg": "^8.9.0"
   },
   "author": "Deepu KS (@deepu105)",
   "license": "MIT"

@@ -1,7 +1,6 @@
+const express = require('express');
 const { Client } = require('pg');
 const csv = require('fast-csv');
-const fs = require('fs');
-const nodemailer = require('nodemailer');
 
 // create a new PostgreSQL client instance
 const client = new Client({
@@ -12,61 +11,37 @@ const client = new Client({
   port: 5432 // or your custom port number
 });
 
-// connect to the PostgreSQL server
-client.connect();
+// create an Express application instance
+const app = express();
 
-// run a query to retrieve data from the database
-client.query('SELECT * FROM your_table', (err, res) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
+// define a route that generates and serves the CSV file
+app.get('/csv', (req, res) => {
+  // connect to the PostgreSQL server
+  client.connect();
 
-  // transform the query result to an array of arrays (rows and columns)
-  const data = res.rows.map(row => Object.values(row));
+  // run a query to retrieve data from the database
+  client.query('SELECT * FROM your_table', (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error generating CSV file');
+    }
 
-  // write the data to a CSV file
-  const csvStream = csv.format({ headers: true });
-  const writableStream = fs.createWriteStream('output.csv');
+    // transform the query result to an array of arrays (rows and columns)
+    const data = result.rows.map(row => Object.values(row));
 
-  csvStream.pipe(writableStream).on('finish', () => {
-    console.log('CSV file generated successfully!');
+    // format the data as a CSV file and send it as a response
+    res.setHeader('Content-disposition', 'attachment; filename=output.csv');
+    res.set('Content-Type', 'text/csv');
 
-    // create a Nodemailer transport object
-    const transporter = nodemailer.createTransport({
-      service: 'your_email_service',
-      auth: {
-        user: 'your_email_address',
-        pass: 'your_email_password'
-      }
-    });
-
-    // define the email options
-    const mailOptions = {
-      from: 'your_email_address',
-      to: 'recipient_email_address',
-      subject: 'CSV file from PostgreSQL database',
-      text: 'Please find attached the CSV file generated from your PostgreSQL database.',
-      attachments: [
-        {
-          filename: 'output.csv',
-          path: './output.csv'
-        }
-      ]
-    };
-
-    // send the email with the CSV file attachment
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error(err);
-        return;
-      }
-
-      console.log(`Email sent successfully: ${info.response}`);
-      client.end();
-    });
+    csv.writeToStream(res, data, { headers: true })
+      .on('finish', () => {
+        console.log('CSV file sent successfully!');
+        client.end();
+      });
   });
+});
 
-  data.forEach(row => csvStream.write(row));
-  csvStream.end();
+// start the HTTP server
+app.listen(3000, () => {
+  console.log('HTTP server listening on port 3000');
 });
